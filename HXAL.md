@@ -1,19 +1,19 @@
 # HXAL
 
-Hxal is an audio-oriented DSL (domain specific programming language) that will be increasingly used by grig.audio to facilitate clean real-time audio code. It solves a number of problems that prevent pre-hxal grig.audio from being usable for real-time audio code. It is in an early stage, but the current focus is on bare minimum but working before we start adding \[carefully thought-out\] features.
+Hxal is an audio-oriented DSL (domain specific programming language) that will be increasingly used by grig.audio to facilitate clean real-time audio code. It solves a number of problems that prevent pre-hxal grig.audio from being usable for real-time audio code. It is in an early stage, but the current focus is on bare minimum but working before we start carefully adding features.
 
 ## Basic Philosophy of HXAL
 
 A simple DSL for making real-time audio code. It's not meant to be a way to write entire applications, but can be away to make synthesizers, effects, and audio code within larger applications. GUIs, midi and OSC code, music theory stuff, etc. all can be done in plain haxe just fine. It doesn't try to be clever and mathematically perfect but instead practical and more closely resemble most rt audio code in the real world - code that works on block-based callbacks. Importantly, it is syntactically haxe code and should make sense to haxe and c++ developers. One of the first features will be to allow environment-specific inline code so that you can port c++ code right away and move things into hxal when you want to take advantage of non-c++ environments.
 
-It's meant to *get out of the way*, *not be fancy* and, like the haxe language itself, *take advantage of hard work that others already did*. It might not provide as much capabilities out of the box as other things, but it should be relatively easy to port existing code to. It won't start out with every imaginable optimization but it should generate standard-compliant code that compilers can optimize and provide a framework for future hand-optimization.
+It's meant to *get out of the way*, *not be fancy* and, like the haxe language itself, *take advantage of hard work that others already did*. It might not provide as much capabilities out of the box as other things, but it should be relatively easy to port existing code to. It won't start out with every imaginable optimization but it should generate standard-compliant code that compilers can optimize and provide a framework for future optimization. Principles:
 
 - When in doubt, don't allow it
 - Fewer features, done right
 - If it's a bad idea to do something 95% of the time, don't allow it
 - Whatever you can't do in hxal you can do in embedded environment-specific code if you must
 - Enforce good audio coding practices
-- Guarantees of thread safety (for getters/setters), lock-free atomics, etc. take precedence over the haxian guarantee that the transpiler should catch the problem. Sometimes C++/C/Rust has to catch the problem because we don't always know where the code is going anyway (e.g., compiled for embedded processor).
+- Guarantees of thread safety (for getters/setters), lock-free atomics, etc. take precedence over the haxian guarantee that the transpiler should catch the problem. Sometimes C++/C/Rust has to catch the problem because we don't always know where the code is going anyway (e.g., compiled for embedded processor using vendor-supplied compiler).
 
 ## Problems we need this early version of hxal to fix:
 
@@ -27,7 +27,7 @@ It's meant to *get out of the way*, *not be fancy* and, like the haxe language i
 ## \[Proposed\] Features of HXAL
 
 - Multiple environments, including languages not supported by the haxe compiler
-- All numeric types guaranteed to be atomic
+- Built-in atomic types guaranteed to be lock-free in pure environments
 - Good defaults built in and prevents you from doing bad things like allocating in the callback
 - Can interact with the rest of the haxe world (with automatically made bindings/externs when using pure environments)
 
@@ -40,12 +40,6 @@ The narrow scope of hxal also makes support for additional environments fairly s
 ### Optimization
 
 ***
-
-# hxal
-
-[Haxe](https://haxe.org/) Audio Language. A haxe-based DSL for real-time audio applications built using haxe's macro system. Part of [grig](https://haxe.org/).
-
-EARLY STAGE OF DEVELOPMENT. Ignore if you are expecting something you can use right away. Other parts of grig can be used now (grig.midi, grig.audio) but not this.
 
 ## Design Goals
 
@@ -61,7 +55,6 @@ EARLY STAGE OF DEVELOPMENT. Ignore if you are expecting something you can use ri
 * Meant to be easy to port legacy c++ code to, rather than being a radically different paradigm like faust
 * Err on the side of simple and works, rather than being clever
 * Designed to build atop other's work, in keeping with the general philosophy of haxe.
-* All errors should be caught by VSCode and others' error checking. This is just haxe code, after all!
 * Per frame and per midi event interface, which easily transforms to soul and, with hxal adding loops, to all the other environments
 
 ## Dual Code Paths
@@ -88,9 +81,7 @@ graph TD;
 To create a node that does processing - it can be an instrument or an effect - by creating a class that extends `grig.hxal.Node`. This will automatically bring in the macros that check the code and, as needed, use it to generate code.
 
 ```haxe
-import grig.hxal.Node;
-
-class SineSynth extends Node
+class SineSynth extends grig.audio.Processor
 {
 }
 ```
@@ -101,10 +92,10 @@ hxal extensively uses compiler metadata for supplying information to different p
 @name("Sine Synth", 'en')
 @name("サインシンセサイザー", 'jp')
 @version("0.0.1")
-class SineSynth extends Node
+class SineSynth extends Processor
 ```
 
-In a `Node` class, you can have variables and functions, with some limitations. Currently, access modifiers aren't supported for simplicity (it has no meaning in plugins or non-oo targets). But final keyword is (and encouraged!) All variables, whether class members or defined in functions must be one of the following types:
+In a `Processor` class, you can have variables and functions, with some limitations. Currently, access modifiers aren't supported for simplicity (it has no meaning in plugins or non-oo targets). But final keyword is. All variables, whether class members or defined in functions must be one of the following types:
 
 * `Int`
 * `UInt`
@@ -130,7 +121,7 @@ Class member variables can be marked as parameters using metadata:
 ```haxe
 @parameter
 @name("OSC1 Frequency", 'en')
-var frequency1:Float;
+var frequency1:AtomicFloat;
 ```
 
 As with the class itself, multiple name, language code pairs are supported for translations.
@@ -138,3 +129,5 @@ As with the class itself, multiple name, language code pairs are supported for t
 ```haxe
 @parameter @name("OSC1 Frequency", 'en') var frequency1:Float;
 ```
+
+We should make it so that there's an option to put this same info in a separate yaml to be specified by 
