@@ -14,4 +14,5 @@
   ],
   "releasenote": "Added realtime audio checker",
   "version": "0.0.5",
+  "dependencies": {}
 }
